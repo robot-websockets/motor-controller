@@ -1,6 +1,6 @@
 # Motor Controller
 
-you will need to install socketio
+you will need to install socketio client
 
 ```
 pip3 install "python-socketio[client]"

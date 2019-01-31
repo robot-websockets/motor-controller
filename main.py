@@ -1,4 +1,3 @@
-import sys
 import argparse
 import json
 import time
@@ -12,6 +11,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-W', '--ws_server')
 
 args = parser.parse_args()
+
+web_socket_server = "192.168.55.11"
+if (args.ws_server):
+    web_socket_server = args.ws_server
 
 
 class MotorController(threading.Thread):
@@ -75,6 +78,7 @@ def on_connect():
 
 @sio.on('movement-control')
 def on_movement_control(data):
+    print('sio.on {}'.format(data))
     motor_control(data)
 
 
@@ -93,21 +97,14 @@ def on_disconnect():
     raise Exception("Restart server connection lost")
 
 
-if args.ws_server:
-    # create a new  MotorController to use
-    Motor = MotorController()
-    Motor.start()
-    web_socket_server = args.ws_server
-    print('remote websocket server address: http://{}:5001:'
-          .format(web_socket_server))
+# create a new  MotorController to use
+Motor = MotorController()
+Motor.start()
+print('remote websocket server address: http://{}:5001:'
+      .format(web_socket_server))
 
-    # this can be removed if no in docker
-    # it just waits for the main server to start.
-    time.sleep(5)
-    sio.connect('http://{}:5001'.format(web_socket_server))
-    sio.wait()
-    #  anything here won't get executed.!!!
-else:
-    print('No -ws_server or -W entered.\nYou need to enter a' +
-          'serveraddress:\n\n try:> python main.py -W "192.168.0.18"\n')
-    sys.exit()
+# it just waits for the main server to start.
+time.sleep(5)
+sio.connect('http://{}:5001'.format(web_socket_server))
+sio.wait()
+#  anything here won't get executed.!!!
