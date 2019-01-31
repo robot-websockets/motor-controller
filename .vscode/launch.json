@@ -9,7 +9,8 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "args": ["-W", "192.168.0.10"]
         },
         {
             "name": "Python: Attach",
@@ -31,11 +32,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/manage.py",
             "console": "integratedTerminal",
-            "args": [
-                "runserver",
-                "--noreload",
-                "--nothreading"
-            ],
+            "args": ["runserver", "--noreload", "--nothreading"],
             "django": true
         },
         {
@@ -46,11 +43,7 @@
             "env": {
                 "FLASK_APP": "app.py"
             },
-            "args": [
-                "run",
-                "--no-debugger",
-                "--no-reload"
-            ],
+            "args": ["run", "--no-debugger", "--no-reload"],
             "jinja": true
         },
         {

@@ -1,0 +1,14 @@
+version: '3'
+services:
+    main-server:
+        image: 'main-server'
+        restart: on-failure
+        ports:
+            - '5001:5001'
+    motor-controller:
+        image: 'motor-controller'
+        restart: on-failure
+        depends_on:
+            - main-server
+        entrypoint: ''
+        command: python main.py -W 192.168.0.10

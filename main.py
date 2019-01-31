@@ -1,12 +1,17 @@
+import sys
+import argparse
 import json
 import time
 import threading
 import socketio
 sio = socketio.Client()
 
-# pip install "python-socketio[client]"
-# or
-# pip3 install "python-socketio[client]"
+print('motor controller starting...')
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-W', '--ws_server')
+
+args = parser.parse_args()
 
 
 class MotorController(threading.Thread):
@@ -46,18 +51,16 @@ class MotorController(threading.Thread):
 
     def set_speed(self, speed):
         self.requested_speed = speed
+        print("speed is now: {}".format(speed))
 
     def set_direction(self, direction):
         self.direction = direction
-
-
-# create a new  MotorController to use
-Motor = MotorController()
-Motor.start()
+        print("direction is now: {}".format(direction))
 
 
 def motor_control(jsondata):
 
+    # print(jsondata)
     data = json.loads(jsondata)
     # print('dir: {}  speed: {}'.format(data['direction'], data['speed']))
 
@@ -67,7 +70,7 @@ def motor_control(jsondata):
 
 @sio.on('connect')
 def on_connect():
-    print('connection established')
+    print('Motor controller: connection established to the main server')
 
 
 @sio.on('movement-control')
@@ -83,14 +86,28 @@ def on_con(data):
 
 @sio.on('disconnect')
 def on_disconnect():
-    print('disconnected from server')
+    print('Motor controller: disconnected from server')
     # we have no connection, so wait 10 seconds and throw exception
     # to force a restart.
     time.sleep(10)
     raise Exception("Restart server connection lost")
 
 
-sio.connect('http://192.168.0.10:5001')
+if args.ws_server:
+    # create a new  MotorController to use
+    Motor = MotorController()
+    Motor.start()
+    web_socket_server = args.ws_server
+    print('remote websocket server address: http://{}:5001:'
+          .format(web_socket_server))
 
-sio.wait()
-#  anything here won't get executed.!!!
+    # this can be removed if no in docker
+    # it just waits for the main server to start.
+    time.sleep(5)
+    sio.connect('http://{}:5001'.format(web_socket_server))
+    sio.wait()
+    #  anything here won't get executed.!!!
+else:
+    print('No -ws_server or -W entered.\nYou need to enter a' +
+          'serveraddress:\n\n try:> python main.py -W "192.168.0.18"\n')
+    sys.exit()
