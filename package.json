@@ -1,0 +1,16 @@
+{
+    "name": "motor_controller",
+    "version": "1.0.0",
+    "description": "controls the robot",
+    "main": "main.py",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/robot-websockets/motor_controller.git"
+    },
+    "author": "philstenning",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/robot-websockets/motor_controller/issues"
+    },
+    "homepage": "https://github.com/robot-websockets/motor_controller#readme"
+}
