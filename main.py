@@ -1,10 +1,13 @@
 #!/usr/bin/python3
+import RPi.GPIO as GPIO  # Import GPIO divers
+import drive             # Import my Picocon 2 Motor controller
 import argparse
 import json
 import time
 import threading
 import socketio
 sio = socketio.Client()
+
 
 print('motor controller starting...')
 
@@ -18,6 +21,24 @@ if (args.ws_server):
     web_socket_server = args.ws_server
 
 
+def set_up():
+    # Set the GPIO pins mode - Also set in drive.py
+    GPIO.setmode(GPIO.BOARD)
+    # Turn GPIO warn off - CAN ALSO BE Set in drive.py
+    GPIO.setwarnings(False)
+    # Set the Front Trigger pin to output
+    GPIO.setup(8, GPIO.OUT)
+    GPIO.setup(10, GPIO.IN)    # Set the Front Echo pin to input
+    drive.init()
+
+
+def destroy():        # Shutdown GPIO and Cleanup modules
+    print('\n... Shutting Down...\n')
+    drive.stop()        # Make sure Bot is not moving when program exits
+    drive.cleanup()     # Shutdown all motor control
+    GPIO.cleanup()
+
+
 class MotorController(threading.Thread):
     message = 'not running'
     direction = 'forwards'
@@ -27,6 +48,7 @@ class MotorController(threading.Thread):
 
     def __init__(self):
         super().__init__()
+
         self.running = True
 
     def run(self):
@@ -42,7 +64,6 @@ class MotorController(threading.Thread):
     def stop_running(self):
         self.running = False
         self.requested_speed = 0
-        # Turn off motors.
 
     def start_running(self):
         self.running = True
@@ -53,13 +74,33 @@ class MotorController(threading.Thread):
     def set_message(self, message):
         self.message = message
 
+    def move(self):
+        if (self.direction == 'forwards'):
+            if (self.requested_speed > 0):
+                drive.forward(self.requested_speed)
+            else:
+                drive.stop()
+        else:
+            if (self.requested_speed > 0):
+                drive.reverse(self.requested_speed)
+            else:
+                drive.stop()
+
     def set_speed(self, speed):
         self.requested_speed = speed
         print("speed is now: {}".format(speed))
+        self.move()
 
     def set_direction(self, direction):
         self.direction = direction
         print("direction is now: {}".format(direction))
+        self.move()
+
+    def destroy(self):                 # Shutdown GPIO and Cleanup modules
+        print('\n... Shutting Down...\n')
+        drive.stop()        # Make sure Bot is not moving when program exits
+        drive.cleanup()     # Shutdown all motor control
+        GPIO.cleanup()
 
 
 def motor_control(jsondata):
@@ -99,13 +140,23 @@ def on_disconnect():
 
 
 # create a new  MotorController to use
-Motor = MotorController()
-Motor.start()
-print('remote websocket server address: http://{}:5001:'
-      .format(web_socket_server))
+try:
+    set_up()  # start the motor driver
+    Motor = MotorController()
+    Motor.start()
+    print('remote websocket server address: http://{}:5001:'
+          .format(web_socket_server))
 
-# it just waits for the main server to start.
-time.sleep(5)
-sio.connect('http://{}:5001'.format(web_socket_server))
-sio.wait()
-#  anything here won't get executed.!!!
+    # it just waits for the main server to start.
+    time.sleep(5)
+    sio.connect('http://{}:5001'.format(web_socket_server))
+    sio.wait()
+    #  anything here won't get executed.!!!
+    #  while the program is running.
+    destroy()  # probably not needed but it won't do any harm.
+
+
+except KeyboardInterrupt:
+    destroy()
+    print('\n\n................... Exit .......................\n\n')
+    exit(0)
