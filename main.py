@@ -104,12 +104,19 @@ class MotorController(threading.Thread):
 
 
 def motor_control(jsondata):
+    min_speed = 50
 
-    # print(jsondata)
+    # when we receive data we need a minimum of 50
+    # to move the train so we need to adjust the input
+    # values accordinly.
     data = json.loads(jsondata)
+
+    input_speed = int(data['speed'])
+    train_speed = (input_speed/2) + min_speed
+
     # print('dir: {}  speed: {}'.format(data['direction'], data['speed']))
 
-    Motor.set_speed(int(data['speed']))
+    Motor.set_speed(train_speed)
     Motor.set_direction(data['direction'])
 
 
