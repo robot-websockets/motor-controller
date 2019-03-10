@@ -112,7 +112,7 @@ def motor_control(jsondata):
     data = json.loads(jsondata)
 
     input_speed = int(data['speed'])
-    train_speed = (input_speed/2) + min_speed
+    train_speed = int((input_speed/2) + min_speed)
 
     # print('dir: {}  speed: {}'.format(data['direction'], data['speed']))
 
