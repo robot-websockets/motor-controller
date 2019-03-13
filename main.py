@@ -8,17 +8,34 @@ import threading
 import socketio
 sio = socketio.Client()
 
+port = 5001
+web_socket_server = "192.168.55.1"
+debug = False
+
 
 print('motor controller starting...')
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-W', '--ws_server')
+parser.add_argument('-S', '--server')
+parser.add_argument('-P', '--port')
+parser.add_argument('-D', '--debug')
 
 args = parser.parse_args()
 
-web_socket_server = "192.168.55.11"
-if (args.ws_server):
-    web_socket_server = args.ws_server
+if (args.server):
+    server_url = args.server
+
+if (args.port):
+    port = args.port
+
+if (args.debug):
+    res = (args.debug).lower()
+    if res == "false":
+        debug = False
+    elif res == "true":
+        debug = True
+# we should now have the info we need
+full_url = 'http://{}:{}'.format(server_url, port)
 
 
 def set_up():
@@ -27,8 +44,8 @@ def set_up():
     # Turn GPIO warn off - CAN ALSO BE Set in drive.py
     GPIO.setwarnings(False)
     # Set the Front Trigger pin to output
-    GPIO.setup(8, GPIO.OUT)
-    GPIO.setup(10, GPIO.IN)    # Set the Front Echo pin to input
+    # GPIO.setup(8, GPIO.OUT)
+    # GPIO.setup(10, GPIO.IN)    # Set the Front Echo pin to input
     drive.init()
 
 
@@ -113,8 +130,8 @@ def motor_control(jsondata):
 
     input_speed = int(data['speed'])
     train_speed = int((input_speed/2) + min_speed)
-
-    # print('dir: {}  speed: {}'.format(data['direction'], data['speed']))
+    if debug:
+        print('dir: {}  speed: {}'.format(data['direction'], data['speed']))
 
     Motor.set_speed(train_speed)
     Motor.set_direction(data['direction'])
@@ -151,12 +168,11 @@ try:
     set_up()  # start the motor driver
     Motor = MotorController()
     Motor.start()
-    print('remote websocket server address: http://{}:5001:'
-          .format(web_socket_server))
+    print('remote websocket server address: {}' .format(full_url))
 
     # it just waits for the main server to start.
     time.sleep(5)
-    sio.connect('http://{}:5001'.format(web_socket_server))
+    sio.connect(full_url)
     sio.wait()
     #  anything here won't get executed.!!!
     #  while the program is running.
