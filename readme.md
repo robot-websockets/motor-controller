@@ -10,10 +10,11 @@ pip3 install "python-socketio[client]"
 
 Now run where:
 
--W is the ip of the main websocket server
+-S is the ip address of the main websocket server
+-M is the minimum speed needed to start the motor, ie 50%
 
 ```bash
-python3 ./app.py -W "192.168.55.13:5001"
+python3 ./app.py -S "192.168.55.13" -M 40
 ```
 
 ## Docker
