@@ -11,6 +11,10 @@ sio = socketio.Client()
 port = 5001
 web_socket_server = "192.168.55.1"
 debug = False
+min_speed = 40
+
+train_object_too_close = False
+train_movement_started = False
 
 
 print('motor controller starting...')
@@ -18,6 +22,7 @@ print('motor controller starting...')
 parser = argparse.ArgumentParser()
 parser.add_argument('-S', '--server')
 parser.add_argument('-P', '--port')
+parser.add_argument('-M', '--min')
 parser.add_argument('-D', '--debug')
 
 args = parser.parse_args()
@@ -27,6 +32,9 @@ if (args.server):
 
 if (args.port):
     port = args.port
+
+if (args.min):
+    min_speed = int(args.min)
 
 if (args.debug):
     res = (args.debug).lower()
@@ -61,12 +69,16 @@ class MotorController(threading.Thread):
     direction = 'forwards'
     current_speed = 0
     requested_speed = 0
-    ramp_speed = 1
+    # ramp_speed = 1
+    proximity_set_speed = 0
+    min_speed = 40
 
     def __init__(self):
         super().__init__()
 
         self.running = True
+
+        print('min speed:', self.min_speed)
 
     def run(self):
         while self.running:
@@ -105,11 +117,11 @@ class MotorController(threading.Thread):
 
     def set_speed(self, speed):
         self.requested_speed = speed
-        print("speed is now: {}".format(speed))
+        # print("speed is now: {}".format(speed))
         self.move()
 
     def set_direction(self, direction):
-        self.direction = direction
+        self.direction = direction.lower()
         print("direction is now: {}".format(direction))
         self.move()
 
@@ -120,26 +132,98 @@ class MotorController(threading.Thread):
         GPIO.cleanup()
 
 
+def calculate_motor_speed(speed):
+
+    if int(speed) is 0:
+        return 0
+    target_speed = int(((100 - min_speed)/100*speed) + min_speed)
+    print('target speed:', target_speed)
+    return target_speed
+
+
 def motor_control(jsondata):
-    min_speed = 50
+    global train_movement_started
 
     # when we receive data we need a minimum of 50
-    # to move the train so we need to adjust the input
+    # to move the motor so we need to adjust the input
     # values accordinly.
     data = json.loads(jsondata)
+    motor_speed = calculate_motor_speed(int(data['speed']))
 
-    input_speed = int(data['speed'])
-    train_speed = int((input_speed/2) + min_speed)
     if debug:
         print('dir: {}  speed: {}'.format(data['direction'], data['speed']))
 
-    Motor.set_speed(train_speed)
     Motor.set_direction(data['direction'])
+
+    # used if proximity sensor changes speed.
+    Motor.current_speed = motor_speed
+    Motor.set_speed(motor_speed)
+
+    if motor_speed == 0:
+        print('train stopped')
+        train_movement_started = False
+        message1 = 'Movement Stopped @ {}'.format(
+            time.strftime('%l:%M%p %Z on %b %d, %Y'))
+        sio.emit('info', {'header': 'Train Stopped',
+                          'message': message1})
+    else:
+
+        if train_movement_started is False:
+            train_movement_started = True
+            message = 'Movement Started @ {}'.format(
+                time.strftime('%l:%M%p %Z on %b %d, %Y'))
+            sio.emit('info', {'header': 'Train Started',
+                              'message': message})
+
+
+def proximity(data):
+    global train_object_too_close
+    # slow things down if an object is in front of sensors.
+
+    how_close = [5, 10, 15, 20]    # how close to object set points
+    motor_speeds = [0, 10, 15, 30]  # speeds at how_close set points
+
+    distance = int(data)
+    if distance < how_close[0]:
+        if debug:
+            print("Motor stopped object too close")
+
+        Motor.set_speed(motor_speeds[0])
+        # const payload = { header: data.device, message: 'connected' };
+        if train_object_too_close is False:
+            sio.emit('info', {'header': 'Train warning',
+                              'message': 'Train Stopped: Object too close'})
+            train_object_too_close = True
+
+    elif distance < how_close[1]:
+        if debug:
+            print("object less than {}cm".format(how_close[1]))
+        if Motor.current_speed > motor_speeds[1]:
+            Motor.set_speed(motor_speeds[1])
+
+    elif distance < how_close[2]:
+        if debug:
+            print("object less than {}cm".format(how_close[2]))
+        if Motor.current_speed > motor_speeds[2]:
+            Motor.set_speed(motor_speeds[2])
+
+    elif distance < how_close[3]:
+        if debug:
+            print("object less than {}cm".format(how_close[3]))
+        if Motor.current_speed > motor_speeds[3]:
+            Motor.set_speed(motor_speeds[3])
+    else:
+        Motor.set_speed(Motor.current_speed)
+        if train_object_too_close:
+            sio.emit('info', {'header': 'Train warning',
+                              'message': 'Train Restarted: Object Removed'})
+            train_object_too_close = False
 
 
 @sio.on('connect')
 def on_connect():
     print('Motor controller: connection established to the main server')
+    sio.emit('movement-control', '{"speed":0,"direction":"Forwards"}')
 
 
 @sio.on('movement-control')
@@ -148,10 +232,15 @@ def on_movement_control(data):
     motor_control(data)
 
 
+@sio.on('proximity')
+def on_proximity(data):
+    proximity(data)
+
+
 @sio.on('ping')  # we have connected. now send data about ourself
 def on_con(data):
     # print('our serverId: ', data)
-    sio.emit('ping', {'id': data,  'device': 'motor service'})
+    sio.emit('ping', {'id': data,  'device': 'Motor Service'})
 
 
 @sio.on('disconnect')
@@ -167,11 +256,12 @@ def on_disconnect():
 try:
     set_up()  # start the motor driver
     Motor = MotorController()
+    Motor.min_speed = min_speed
     Motor.start()
     print('remote websocket server address: {}' .format(full_url))
 
     # it just waits for the main server to start.
-    time.sleep(5)
+    # time.sleep(5)
     sio.connect(full_url)
     sio.wait()
     #  anything here won't get executed.!!!
