@@ -104,14 +104,14 @@ class MotorController(threading.Thread):
         self.message = message
 
     def move(self):
-        if (self.direction == 'forwards'):
+        if (self.direction == 'backwards'):
             if (self.requested_speed > 0):
-                drive.forward(self.requested_speed)
+                drive.reverse(self.requested_speed)
             else:
                 drive.stop()
         else:
             if (self.requested_speed > 0):
-                drive.reverse(self.requested_speed)
+                drive.forward(self.requested_speed)
             else:
                 drive.stop()
 
