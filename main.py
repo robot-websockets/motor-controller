@@ -180,7 +180,7 @@ def proximity(data):
     global train_object_too_close
     # slow things down if an object is in front of sensors.
 
-    how_close = [5, 10, 15, 20]    # how close to object set points
+    how_close = [5, 20, 30, 40]    # how close to object set points
     motor_speeds = [0, 10, 15, 30]  # speeds at how_close set points
 
     distance = int(data)
